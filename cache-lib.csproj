@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <!-- Semantic versioning -->
+    <Version>1.0.0</Version>
+    <!-- Used by the CLR at runtime -->
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <!-- The Win32 file version -->
+    <FileVersion>1.0.0.0</FileVersion>
+    <!-- An informational version, e.g. "1.0.0-beta" -->
+    <InformationalVersion>1.0.0</InformationalVersion>
+    <RootNamespace>cache_lib</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Text.Json" Version="9.0.2" />
+  </ItemGroup>
+
+</Project>
