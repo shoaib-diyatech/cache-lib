@@ -52,4 +52,6 @@ using System;
         /// Clears all items from the cache.
         /// </summary>
         void Clear();
+
+        string Memory();
     }

@@ -3,6 +3,7 @@ using System;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
+using MessagePack;
 
 public class CacheClient : ICache
 {
@@ -77,14 +78,17 @@ public class CacheClient : ICache
         {
             EnsureInitialized();
             string jsonValue = JsonSerializer.Serialize(value);
+            //Encoding.UTF8.GetBytes(jsonValue);
+            string base64Value = Convert.ToBase64String(Encoding.UTF8.GetBytes(jsonValue));
+
             string command;
             if (ttl <= 0)
             {
-                command = $"CREATE {key} {jsonValue}";
+                command = $"CREATE {key} {base64Value}";
             }
             else
             {
-                command = $"CREATE {key} {jsonValue} {ttl}";
+                command = $"CREATE {key} {base64Value} {ttl}";
             }
             string response = SendCommand(command);
             if (!response.StartsWith("OK"))
@@ -97,6 +101,49 @@ public class CacheClient : ICache
             throw new Exception("Error adding to cache", ex);
         }
     }
+
+
+
+
+    /// <summary>
+    /// Adds the value as MessagePack's encoded string 
+    /// </summary>
+    /// <param name="key"></param>
+    /// <param name="value"></param>
+    /// <param name="ttl"></param>
+    /// <exception cref="Exception"></exception>
+    public void AddMP(string key, object value, int ttl)
+    {
+        try
+        {
+            EnsureInitialized();
+
+            // Serialize the object using MessagePack
+            byte[] serializedValue = MessagePackSerializer.Serialize(value);
+
+            // Build the command
+            string command;
+            if (ttl <= 0)
+            {
+                command = $"CREATE {key} {Convert.ToBase64String(serializedValue)}"; // Sending the base64 string over TCP
+            }
+            else
+            {
+                command = $"CREATE {key} {Convert.ToBase64String(serializedValue)} {ttl}";
+            }
+
+            string response = SendCommand(command);
+            if (!response.StartsWith("OK"))
+            {
+                // Handle the failure response
+            }
+        }
+        catch (Exception ex)
+        {
+            throw new Exception("Error adding to cache", ex);
+        }
+    }
+
 
     public void Add(string key, object value)
     {
@@ -115,7 +162,9 @@ public class CacheClient : ICache
             {
                 return null;
             }
-            return response;
+
+            // Decode Base64 and return the JSON string
+            return Encoding.UTF8.GetString(Convert.FromBase64String(response));
         }
         catch (Exception ex)
         {
@@ -128,22 +177,14 @@ public class CacheClient : ICache
     /// </summary>
     public T Get<T>(string key)
     {
-        try
+        string jsonValue = Get(key) as string; // Retrieve and cast to string
+        if (string.IsNullOrWhiteSpace(jsonValue))
         {
-            object result = Get(key);
-            if (result == null)
-            {
-                return default;
-            }
+            return default;
+        }
 
-            // We assume that the server returns the value as a JSON string.
-            string json = result as string;
-            return JsonSerializer.Deserialize<T>(json);
-        }
-        catch (Exception ex)
-        {
-            throw new Exception("Error getting from cache", ex);
-        }
+        // Deserialize JSON into the requested type
+        return JsonSerializer.Deserialize<T>(jsonValue);
     }
 
     public void Update(string key, object value, int ttl)
@@ -227,6 +268,25 @@ public class CacheClient : ICache
         Console.WriteLine("Cache client disposed and connection closed.");
     }
 
+    public string Memory()
+    {
+        try
+        {
+            EnsureInitialized();
+            string command = $"MEM ?";
+            string response = SendCommand(command);
+            if (string.IsNullOrWhiteSpace(response) || response.Trim() == "NULL")
+            {
+                return response;
+            }
+            return response;
+        }
+        catch (Exception ex)
+        {
+            throw new Exception("Error getting memory from cache", ex);
+        }
+    }
+
     private void EnsureInitialized()
     {
         if (!_isInitialized)
@@ -234,4 +294,6 @@ public class CacheClient : ICache
             throw new InvalidOperationException("Cache client is not initialized. Call Initialize() first.");
         }
     }
+
+
 }
